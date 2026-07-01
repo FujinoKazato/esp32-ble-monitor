@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ESP32 BLE Monitor</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; background-color: #f4f4f9; color: #333; }
+    h2 { border-bottom: 2px solid #5D5C61; padding-bottom: 5px; }
+    table { width: 100%; max-width: 500px; border-collapse: collapse; margin-bottom: 20px; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 12px; text-align: left; }
+    th { background-color: #e0e0e0; }
+    .hidden { display: none; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #007BFF; color: white; border: none; border-radius: 5px; margin-bottom: 10px;}
+    button:hover { background-color: #0056b3; }
+    button:disabled { background-color: #ccc; cursor: not-allowed; }
+    input[type="number"] { padding: 8px; font-size: 16px; width: 100px; }
+    .form-group { margin-bottom: 15px; }
+    .lamp { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
+    .lamp-green { background-color: #28a745; box-shadow: 0 0 6px #28a745; }
+    .lamp-red { background-color: #dc3545; box-shadow: 0 0 6px #dc3545; }
+    #connectionStatus { font-weight: bold; margin-bottom: 15px; color: #dc3545; }
+  </style>
+</head>
+<body>
+  <div id="bleControls">
+    <button id="connectBtn">ESP32に接続する(Bluetooth)</button>
+    <div id="connectionStatus">未接続</div>
+  </div>
+
+  <div id="monitorView">
+    <h2>モニタリング画面</h2>
+    <table>
+      <tr><th>項目</th><th>現在値</th></tr>
+      <tr><td>日付<br>[年/月/日(曜日)]</td><td><span id="log1">--</span></td></tr>
+      <tr><td>時刻[h:m:s]</td><td><span id="log2">--</span></td></tr>
+      <tr><td>発電力量</td><td><span id="inPower">--</span> W</td></tr>
+      <tr><td>発電入力電圧</td><td><span id="InVoltage">--</span> V</td></tr>
+      <tr><td>発電入力電流</td><td><span id="InCurrent">--</span> mA</td></tr>
+      <tr><td>消費電力量</td><td><span id="outPower">--</span> W</td></tr>
+      <tr><td>出力電圧 &<br>バッテリ電圧</td><td><span id="OutVoltage">--</span> V</td></tr>
+      <tr><td>出力電流</td><td><span id="OutCurrent">--</span> mA</td></tr>
+      <tr><td>照度</td><td><span id="lux">--</span> lux</td></tr>
+      <tr><td>外灯ステータス</td><td><span id="lightLamp" class="lamp lamp-green"></span><span id="lightText">--</span></td></tr>
+      <tr><td>内部温度</td><td><span id="innerTemp">--</span> ℃</td></tr>
+      <tr><td>内部ファン</td><td><span id="fanLamp" class="lamp lamp-green"></span><span id="fanText">--</span></td></tr>
+    </table>
+    <button onclick="toggleView()" id="toSettingsBtn" disabled>設定画面へ</button>
+  </div>
+
+  <div id="settingsView" class="hidden">
+    <h2>設定画面</h2>
+    <div class="form-group">
+      <label>SD書込み間隔:</label><br>
+      <input type="number" id="intervalInput" value=""> 秒
+    </div>
+    <div class="form-group">
+      <label>LCD更新時間:</label><br>
+      <input type="number" id="lcdInput" value=""> ms
+    </div>
+    <div class="form-group">
+      <label>バッテリ電圧補正:</label><br>
+      <input type="number" step="0.01" id="batteryCorrectInput" value=""> V
+    </div>
+    <div class="form-group">
+      <label>内部温度補正:</label><br>
+      <input type="number" step="0.1" id="tempCorrectInput" value=""> ℃
+    </div>
+    <button onclick="saveSettings()">設定を保存</button>
+    <button style="background-color: #6c757d;" onclick="toggleView()">キャンセル(戻る)</button>
+  </div>
+
+  <script>
+    // ESP32のプログラムと一致させるUUID
+    const serviceUuid = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
+    const txCharacteristicUuid = 'beb5483e-36e1-4688-b7f5-ea07361b26a8'; // 受信用(Notify)
+    const rxCharacteristicUuid = '1c225026-6b21-4f81-8079-c5c63aa488f7'; // 送信用(Write)
+    
+    let bleDevice;
+    let rxCharacteristic;
+
+    // ESP32から送られてきた設定値を保持する変数
+    let serverInterval = "";
+    let serverLcdDelay = "";
+    let serverBatteryCorrect = "";
+    let serverTempCorrect = "";
+
+    // 「接続する」ボタンが押された時の処理
+    document.getElementById('connectBtn').addEventListener('click', async () => {
+      try {
+        document.getElementById('connectionStatus').innerText = '接続中...';
+        document.getElementById('connectionStatus').style.color = '#ffc107';
+
+        // 1. デバイスを検索（名前がESP32_Monitorのもの）
+        bleDevice = await navigator.bluetooth.requestDevice({
+          filters: [{ name: 'ESP32_Monitor' }],
+          optionalServices: [serviceUuid]
+        });
+
+        // 切断された時のイベントを登録
+        bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+        // 2. 接続してサービスを取得
+        const server = await bleDevice.gatt.connect();
+        const service = await server.getPrimaryService(serviceUuid);
+        
+        // 3. データ受信(Notify)の開始設定
+        const txCharacteristic = await service.getCharacteristic(txCharacteristicUuid);
+        await txCharacteristic.startNotifications();
+        txCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+        
+        // 4. データ送信(Write)用の窓口を確保
+        rxCharacteristic = await service.getCharacteristic(rxCharacteristicUuid);
+        
+        // 画面の表示を更新
+        document.getElementById('connectionStatus').innerText = '接続済み';
+        document.getElementById('connectionStatus').style.color = '#28a745';
+        document.getElementById('connectBtn').disabled = true;
+        document.getElementById('toSettingsBtn').disabled = false;
+
+      } catch (error) {
+        console.error(error);
+        document.getElementById('connectionStatus').innerText = '接続失敗';
+        document.getElementById('connectionStatus').style.color = '#dc3545';
+      }
+    });
+
+    // 切断された時の処理
+    function onDisconnected() {
+      document.getElementById('connectionStatus').innerText = '切断されました';
+      document.getElementById('connectionStatus').style.color = '#dc3545';
+      document.getElementById('connectBtn').disabled = false;
+      document.getElementById('toSettingsBtn').disabled = true;
+    }
+
+    // ESP32からデータを受信した時の処理
+    function handleNotifications(event) {
+      const value = event.target.value;
+      const decoder = new TextDecoder('utf-8');
+      
+      try {
+        // 受信したデータをJSONとして解析
+        const data = JSON.parse(decoder.decode(value));
+        
+        // 画面の数値を更新
+        document.getElementById('inPower').innerText = data.InPower.toFixed(2);
+        document.getElementById('InVoltage').innerText = data.InVoltage.toFixed(2);
+        document.getElementById('InCurrent').innerText = data.InCurrent.toFixed(2);
+        document.getElementById('outPower').innerText = data.OutPower.toFixed(2);
+        document.getElementById('OutVoltage').innerText = data.OutVoltage.toFixed(2);
+        document.getElementById('OutCurrent').innerText = data.OutCurrent.toFixed(2);
+        document.getElementById('lux').innerText = data.Lux.toFixed(2);
+        document.getElementById('log1').innerText = data.logBuffer1;
+        document.getElementById('log2').innerText = data.logBuffer2;
+        document.getElementById('innerTemp').innerText = data.InnerTemp.toFixed(2);
+        
+        // 外灯ステータス（ランプの色と文字の変更）
+        const lightLampEl = document.getElementById('lightLamp');
+        const lightTextEl = document.getElementById('lightText');
+        if (data.LightState === 1) {
+          lightLampEl.className = 'lamp lamp-red';
+          lightTextEl.innerText = '点灯 (ON)';
+        } else {
+          lightLampEl.className = 'lamp lamp-green';
+          lightTextEl.innerText = '消灯 (OFF)';
+        }
+        
+        // 内部ファンステータス
+        const fanLampEl = document.getElementById('fanLamp');
+        const fanTextEl = document.getElementById('fanText');
+        if (data.FanState === 1) {
+          fanLampEl.className = 'lamp lamp-red';
+          fanTextEl.innerText = '動作中 (ON)';
+        } else {
+          fanLampEl.className = 'lamp lamp-green';
+          fanTextEl.innerText = '停止 (OFF)';
+        }
+        
+        // 最新の設定値を裏側で保持しておく
+        serverInterval = data.interval;
+        serverLcdDelay = data.lcdDelay;
+        serverBatteryCorrect = data.batteryCorrect;
+        serverTempCorrect = data.tempCorrect;
+        
+      } catch (e) {
+        console.error("データ解析エラー: ", e);
+      }
+    }
+
+    // 画面切り替え（モニター ⇔ 設定）
+    function toggleView() {
+      const monitor = document.getElementById('monitorView');
+      const settings = document.getElementById('settingsView');
+      
+      monitor.classList.toggle('hidden');
+      settings.classList.toggle('hidden');
+      
+      // 設定画面を開いた時、ESP32から届いている最新の値を入力欄にセットする
+      if (!settings.classList.contains('hidden')) {
+        document.getElementById('intervalInput').value = serverInterval;
+        document.getElementById('lcdInput').value = serverLcdDelay;
+        document.getElementById('batteryCorrectInput').value = serverBatteryCorrect;
+        document.getElementById('tempCorrectInput').value = serverTempCorrect;
+      }
+    }
+
+    // 設定をESP32へ送信する処理
+    async function saveSettings() {
+      if (!rxCharacteristic) {
+        alert('BLEデバイスに接続されていません。');
+        return;
+      }
+
+      // 入力された値を取得
+      let intervalVal = document.getElementById('intervalInput').value;
+      let lcdVal = document.getElementById('lcdInput').value;
+      let batteryCorrectVal = document.getElementById('batteryCorrectInput').value;
+      let tempCorrectVal = document.getElementById('tempCorrectInput').value;
+      
+      // ESP32が解読しやすい文字列（クエリパラメータ形式）にする
+      let sendStr = `interval=${intervalVal}&lcdDelay=${lcdVal}&batteryCorrect=${batteryCorrectVal}&tempCorrect=${tempCorrectVal}`;
+      
+      // 文字列をバイトデータに変換
+      const encoder = new TextEncoder();
+      const data = encoder.encode(sendStr);
+
+      try {
+        // ESP32へ書き込み（送信）
+        await rxCharacteristic.writeValue(data);
+        alert('設定を保存しました');
+        toggleView(); // 保存成功したらモニタリング画面に戻る
+      } catch (error) {
+        console.error(error);
+        alert('設定の保存に失敗しました');
+      }
+    }
+  </script>
+</body>
+</html>
