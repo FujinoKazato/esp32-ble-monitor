@@ -78,6 +78,14 @@
         <button type="button" id="backlightOffBtn" onclick="selectBacklight(0)">OFF</button>
       </div>
     </div>
+    <div class="form-group">
+      <label>外灯を付ける明るさ (LED_lux_ON):</label><br>
+      <input type="number" id="luxOnInput" value=""> lux
+    </div>
+    <div class="form-group">
+      <label>外灯を消す明るさ (LED_lux_OFF):</label><br>
+      <input type="number" id="luxOffInput" value=""> lux
+    </div>
     <button onclick="saveSettings()">設定を保存</button>
     <button style="background-color: #6c757d;" onclick="toggleView()">キャンセル(戻る)</button>
   </div>
@@ -98,6 +106,8 @@
     let serverTempCorrect = "";
     let serverBacklight = 1;
     let selectedBacklight = 1; // 選択中の値（1: ON, 0: OFF）
+    let serverLuxOn = "";
+    let serverLuxOff = "";
 
     // 「接続する」ボタンが押された時の処理
     document.getElementById('connectBtn').addEventListener('click', async () => {
@@ -196,6 +206,8 @@
         serverBatteryCorrect = data.batteryCorrect;
         serverTempCorrect = data.tempCorrect;
         serverBacklight = data.backlight !== undefined ? data.backlight : 1;
+        serverLuxOn = data.luxOn !== undefined ? data.luxOn : "";
+        serverLuxOff = data.luxOff !== undefined ? data.luxOff : "";
         
       } catch (e) {
         console.error("データ解析エラー: ", e);
@@ -218,6 +230,8 @@
         document.getElementById('tempCorrectInput').value = serverTempCorrect;
         selectedBacklight = serverBacklight;
         updateBacklightUI();
+        document.getElementById('luxOnInput').value = serverLuxOn;
+        document.getElementById('luxOffInput').value = serverLuxOff;
       }
     }
 
@@ -251,9 +265,11 @@
       let lcdVal = document.getElementById('lcdInput').value;
       let batteryCorrectVal = document.getElementById('batteryCorrectInput').value;
       let tempCorrectVal = document.getElementById('tempCorrectInput').value;
+      let luxOnVal = document.getElementById('luxOnInput').value;
+      let luxOffVal = document.getElementById('luxOffInput').value;
       
       // ESP32が解読しやすい文字列（クエリパラメータ形式）にする
-      let sendStr = `interval=${intervalVal}&lcdDelay=${lcdVal}&batteryCorrect=${batteryCorrectVal}&tempCorrect=${tempCorrectVal}&backlight=${selectedBacklight}`;
+      let sendStr = `interval=${intervalVal}&lcdDelay=${lcdVal}&batteryCorrect=${batteryCorrectVal}&tempCorrect=${tempCorrectVal}&backlight=${selectedBacklight}&luxOn=${luxOnVal}&luxOff=${luxOffVal}`;
       
       // 文字列をバイトデータに変換
       const encoder = new TextEncoder();
