@@ -20,6 +20,11 @@
     .lamp-green { background-color: #28a745; box-shadow: 0 0 6px #28a745; }
     .lamp-red { background-color: #dc3545; box-shadow: 0 0 6px #dc3545; }
     #connectionStatus { font-weight: bold; margin-bottom: 15px; color: #dc3545; }
+    .btn-group { display: flex; gap: 10px; max-width: 200px; margin-top: 5px; }
+    .btn-group button { flex: 1; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; cursor: pointer; background-color: #e0e0e0; color: #333; transition: all 0.3s; margin-bottom: 0; }
+    .btn-group button:hover { background-color: #d0d0d0; }
+    .btn-group button#backlightOnBtn.active { background-color: #28a745; color: white; border-color: #28a745; }
+    .btn-group button#backlightOffBtn.active { background-color: #dc3545; color: white; border-color: #dc3545; }
   </style>
 </head>
 <body>
@@ -66,6 +71,13 @@
       <label>内部温度補正:</label><br>
       <input type="number" step="0.1" id="tempCorrectInput" value=""> ℃
     </div>
+    <div class="form-group">
+      <label>LCDバックライト:</label><br>
+      <div class="btn-group">
+        <button type="button" id="backlightOnBtn" onclick="selectBacklight(1)">ON</button>
+        <button type="button" id="backlightOffBtn" onclick="selectBacklight(0)">OFF</button>
+      </div>
+    </div>
     <button onclick="saveSettings()">設定を保存</button>
     <button style="background-color: #6c757d;" onclick="toggleView()">キャンセル(戻る)</button>
   </div>
@@ -84,6 +96,8 @@
     let serverLcdDelay = "";
     let serverBatteryCorrect = "";
     let serverTempCorrect = "";
+    let serverBacklight = 1;
+    let selectedBacklight = 1; // 選択中の値（1: ON, 0: OFF）
 
     // 「接続する」ボタンが押された時の処理
     document.getElementById('connectBtn').addEventListener('click', async () => {
@@ -181,6 +195,7 @@
         serverLcdDelay = data.lcdDelay;
         serverBatteryCorrect = data.batteryCorrect;
         serverTempCorrect = data.tempCorrect;
+        serverBacklight = data.backlight !== undefined ? data.backlight : 1;
         
       } catch (e) {
         console.error("データ解析エラー: ", e);
@@ -201,6 +216,26 @@
         document.getElementById('lcdInput').value = serverLcdDelay;
         document.getElementById('batteryCorrectInput').value = serverBatteryCorrect;
         document.getElementById('tempCorrectInput').value = serverTempCorrect;
+        selectedBacklight = serverBacklight;
+        updateBacklightUI();
+      }
+    }
+
+    // バックライト選択ボタンの処理
+    function selectBacklight(val) {
+      selectedBacklight = val;
+      updateBacklightUI();
+    }
+
+    function updateBacklightUI() {
+      const onBtn = document.getElementById('backlightOnBtn');
+      const offBtn = document.getElementById('backlightOffBtn');
+      if (selectedBacklight === 1) {
+        onBtn.classList.add('active');
+        offBtn.classList.remove('active');
+      } else {
+        onBtn.classList.remove('active');
+        offBtn.classList.add('active');
       }
     }
 
@@ -218,7 +253,7 @@
       let tempCorrectVal = document.getElementById('tempCorrectInput').value;
       
       // ESP32が解読しやすい文字列（クエリパラメータ形式）にする
-      let sendStr = `interval=${intervalVal}&lcdDelay=${lcdVal}&batteryCorrect=${batteryCorrectVal}&tempCorrect=${tempCorrectVal}`;
+      let sendStr = `interval=${intervalVal}&lcdDelay=${lcdVal}&batteryCorrect=${batteryCorrectVal}&tempCorrect=${tempCorrectVal}&backlight=${selectedBacklight}`;
       
       // 文字列をバイトデータに変換
       const encoder = new TextEncoder();
