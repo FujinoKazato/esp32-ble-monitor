@@ -90,6 +90,14 @@
       <label>出力最低バッテリ電圧 (battery_limit_voltage):</label><br>
       <input type="number" step="0.1" id="batteryLimitInput" value=""> V
     </div>
+    <div class="form-group">
+      <label>ファンが回り始める温度 (TEMP_START):</label><br>
+      <input type="number" step="0.1" id="tempStartInput" value=""> ℃
+    </div>
+    <div class="form-group">
+      <label>ファンが全開になる温度 (TEMP_MAX):</label><br>
+      <input type="number" step="0.1" id="tempMaxInput" value=""> ℃
+    </div>
     <button onclick="saveSettings()">設定を保存</button>
     <button style="background-color: #6c757d;" onclick="toggleView()">キャンセル(戻る)</button>
   </div>
@@ -113,6 +121,8 @@
     let serverLuxOn = "";
     let serverLuxOff = "";
     let serverBatteryLimit = "";
+    let serverTempStart = "";
+    let serverTempMax = "";
 
     // 「接続する」ボタンが押された時の処理
     document.getElementById('connectBtn').addEventListener('click', async () => {
@@ -214,6 +224,8 @@
         serverLuxOn = data.luxOn !== undefined ? data.luxOn : "";
         serverLuxOff = data.luxOff !== undefined ? data.luxOff : "";
         serverBatteryLimit = data.batteryLimit !== undefined ? data.batteryLimit : "";
+        serverTempStart = data.tempStart !== undefined ? data.tempStart : "";
+        serverTempMax = data.tempMax !== undefined ? data.tempMax : "";
         
       } catch (e) {
         console.error("データ解析エラー: ", e);
@@ -239,6 +251,8 @@
         document.getElementById('luxOnInput').value = serverLuxOn;
         document.getElementById('luxOffInput').value = serverLuxOff;
         document.getElementById('batteryLimitInput').value = serverBatteryLimit;
+        document.getElementById('tempStartInput').value = serverTempStart;
+        document.getElementById('tempMaxInput').value = serverTempMax;
       }
     }
 
@@ -275,9 +289,11 @@
       let luxOnVal = document.getElementById('luxOnInput').value;
       let luxOffVal = document.getElementById('luxOffInput').value;
       let batteryLimitVal = document.getElementById('batteryLimitInput').value;
+      let tempStartVal = document.getElementById('tempStartInput').value;
+      let tempMaxVal = document.getElementById('tempMaxInput').value;
       
       // ESP32が解読しやすい文字列（クエリパラメータ形式）にする
-      let sendStr = `interval=${intervalVal}&lcdDelay=${lcdVal}&batteryCorrect=${batteryCorrectVal}&tempCorrect=${tempCorrectVal}&backlight=${selectedBacklight}&luxOn=${luxOnVal}&luxOff=${luxOffVal}&batteryLimit=${batteryLimitVal}`;
+      let sendStr = `interval=${intervalVal}&lcdDelay=${lcdVal}&batteryCorrect=${batteryCorrectVal}&tempCorrect=${tempCorrectVal}&backlight=${selectedBacklight}&luxOn=${luxOnVal}&luxOff=${luxOffVal}&batteryLimit=${batteryLimitVal}&tempStart=${tempStartVal}&tempMax=${tempMaxVal}`;
       
       // 文字列をバイトデータに変換
       const encoder = new TextEncoder();
