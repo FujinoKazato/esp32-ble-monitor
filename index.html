@@ -39,6 +39,9 @@
       <tr><th>項目</th><th>現在値</th></tr>
       <tr><td>日付<br>[年/月/日(曜日)]</td><td><span id="log1">--</span></td></tr>
       <tr><td>時刻[h:m:s]</td><td><span id="log2">--</span></td></tr>
+      <tr><td>気温</td><td><span id="temp">--</span> ℃</td></tr>
+      <tr><td>湿度</td><td><span id="humid">--</span> ％</td></tr>
+      <tr><td>気圧</td><td><span id="pressure">--</span> hPa</td></tr>
       <tr><td>発電力量</td><td><span id="inPower">--</span> W</td></tr>
       <tr><td>発電入力電圧</td><td><span id="InVoltage">--</span> V</td></tr>
       <tr><td>発電入力電流</td><td><span id="InCurrent">--</span> mA</td></tr>
@@ -191,6 +194,9 @@
         document.getElementById('lux').innerText = data.Lux.toFixed(2);
         document.getElementById('log1').innerText = data.logBuffer1;
         document.getElementById('log2').innerText = data.logBuffer2;
+        document.getElementById('temp').innerText = data.temp.toFixed(2);
+        document.getElementById('humid').innerText = data.humid.toFixed(2);
+        document.getElementById('pressure').innerText = data.pressure.toFixed(2);
         document.getElementById('innerTemp').innerText = data.InnerTemp.toFixed(2);
         
         // 外灯ステータス（ランプの色と文字の変更）
