@@ -28,11 +28,14 @@
     #downloadBtn { background-color: #28a745; }
     #downloadBtn:hover { background-color: #218838; }
     #downloadBtn:disabled { background-color: #ccc; cursor: not-allowed; }
+    #disconnectBtn { background-color: #dc3545; }
+    #disconnectBtn:hover { background-color: #c82333; }
   </style>
 </head>
 <body>
   <div id="bleControls">
     <button id="connectBtn">接続する(Bluetooth)</button>
+    <button id="disconnectBtn" style="display: none;">切断する</button>
     <div id="connectionStatus">未接続</div>
   </div>
 
@@ -172,7 +175,8 @@
         // 画面の表示を更新
         document.getElementById('connectionStatus').innerText = '接続済み';
         document.getElementById('connectionStatus').style.color = '#28a745';
-        document.getElementById('connectBtn').disabled = true;
+        document.getElementById('connectBtn').style.display = 'none';
+        document.getElementById('disconnectBtn').style.display = 'inline-block';
         document.getElementById('toSettingsBtn').disabled = false;
         document.getElementById('downloadBtn').disabled = false;
 
@@ -183,11 +187,20 @@
       }
     });
 
+    // 「切断する」ボタンが押された時の処理
+    document.getElementById('disconnectBtn').addEventListener('click', () => {
+      if (bleDevice && bleDevice.gatt.connected) {
+        bleDevice.gatt.disconnect();
+      }
+    });
+
     // 切断された時の処理
     function onDisconnected() {
       document.getElementById('connectionStatus').innerText = '切断されました';
       document.getElementById('connectionStatus').style.color = '#dc3545';
+      document.getElementById('connectBtn').style.display = 'inline-block';
       document.getElementById('connectBtn').disabled = false;
+      document.getElementById('disconnectBtn').style.display = 'none';
       document.getElementById('toSettingsBtn').disabled = true;
       document.getElementById('downloadBtn').disabled = true;
       document.getElementById('downloadStatus').style.display = 'none';
