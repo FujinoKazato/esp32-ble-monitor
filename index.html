@@ -53,7 +53,13 @@
       <tr><td>内部温度</td><td><span id="innerTemp">--</span> ℃</td></tr>
       <tr><td>内部ファン</td><td><span id="fanLamp" class="lamp lamp-green"></span><span id="fanText">--</span></td></tr>
     </table>
-    <button onclick="toggleView()" id="toSettingsBtn" disabled>設定画面へ</button>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <button onclick="toggleView()" id="toSettingsBtn" disabled>設定画面へ</button>
+      <button onclick="requestDownload()" id="downloadBtn" disabled style="background-color: #28a745;">観測データのダウンロード</button>
+    </div>
+    <div id="downloadStatus" style="margin-top: 10px; font-weight: bold; display: none;">
+      ダウンロード中: <span id="downloadProgress">0</span>% (<span id="downloadBytes">0</span> / <span id="downloadTotal">0</span> バイト)
+    </div>
   </div>
 
   <div id="settingsView" class="hidden">
@@ -127,6 +133,12 @@
     let serverTempStart = "";
     let serverTempMax = "";
 
+    // ダウンロード制御用変数
+    let downloadBuffer = [];
+    let downloadExpectedSize = 0;
+    let downloadReceivedSize = 0;
+    let isDownloadingFile = false;
+
     // 「接続する」ボタンが押された時の処理
     document.getElementById('connectBtn').addEventListener('click', async () => {
       try {
@@ -159,6 +171,7 @@
         document.getElementById('connectionStatus').style.color = '#28a745';
         document.getElementById('connectBtn').disabled = true;
         document.getElementById('toSettingsBtn').disabled = false;
+        document.getElementById('downloadBtn').disabled = false;
 
       } catch (error) {
         console.error(error);
@@ -173,16 +186,75 @@
       document.getElementById('connectionStatus').style.color = '#dc3545';
       document.getElementById('connectBtn').disabled = false;
       document.getElementById('toSettingsBtn').disabled = true;
+      document.getElementById('downloadBtn').disabled = true;
+      document.getElementById('downloadStatus').style.display = 'none';
+      isDownloadingFile = false;
     }
 
     // ESP32からデータを受信した時の処理
     function handleNotifications(event) {
       const value = event.target.value;
       const decoder = new TextDecoder('utf-8');
+      const text = decoder.decode(value);
+      
+      // ファイル転送プロトコルの解析
+      if (text.startsWith("FILE_START:")) {
+        isDownloadingFile = true;
+        downloadBuffer = [];
+        downloadReceivedSize = 0;
+        downloadExpectedSize = parseInt(text.split(":")[1], 10);
+        
+        document.getElementById('downloadStatus').style.display = 'block';
+        document.getElementById('downloadProgress').innerText = '0';
+        document.getElementById('downloadBytes').innerText = '0';
+        document.getElementById('downloadTotal').innerText = downloadExpectedSize;
+        document.getElementById('downloadBtn').disabled = true;
+        document.getElementById('toSettingsBtn').disabled = true;
+        return;
+      }
+      
+      if (text.startsWith("FILE_DATA:")) {
+        const chunk = text.substring(10);
+        downloadBuffer.push(chunk);
+        downloadReceivedSize += chunk.length;
+        
+        const percent = Math.min(100, Math.round((downloadReceivedSize / downloadExpectedSize) * 100));
+        document.getElementById('downloadProgress').innerText = percent;
+        document.getElementById('downloadBytes').innerText = downloadReceivedSize;
+        return;
+      }
+      
+      if (text === "FILE_END") {
+        isDownloadingFile = false;
+        const blob = new Blob([downloadBuffer.join("")], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "DATALOG_E.csv";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        alert("ダウンロードが完了しました");
+        document.getElementById('downloadStatus').style.display = 'none';
+        document.getElementById('downloadBtn').disabled = false;
+        document.getElementById('toSettingsBtn').disabled = false;
+        return;
+      }
+      
+      if (text === "FILE_ERROR") {
+        isDownloadingFile = false;
+        alert("SDカード内のファイル読み込みに失敗しました");
+        document.getElementById('downloadStatus').style.display = 'none';
+        document.getElementById('downloadBtn').disabled = false;
+        document.getElementById('toSettingsBtn').disabled = false;
+        return;
+      }
       
       try {
         // 受信したデータをJSONとして解析
-        const data = JSON.parse(decoder.decode(value));
+        const data = JSON.parse(text);
         
         // 画面の数値を更新
         document.getElementById('inPower').innerText = data.InPower.toFixed(2);
@@ -313,6 +385,30 @@
       } catch (error) {
         console.error(error);
         alert('設定の保存に失敗しました');
+      }
+    }
+
+    // CSVファイルのダウンロード開始要求
+    async function requestDownload() {
+      if (!rxCharacteristic) {
+        alert('BLEデバイスに接続されていません。');
+        return;
+      }
+      
+      if (!confirm('SDカードのDATALOG_E.csvをダウンロードしますか？\n(ダウンロード中、SDへのデータ書き込みは一時停止します)')) {
+        return;
+      }
+      
+      // 送信コマンドを作成
+      let sendStr = "cmd=download";
+      const encoder = new TextEncoder();
+      const data = encoder.encode(sendStr);
+      
+      try {
+        await rxCharacteristic.writeValue(data);
+      } catch (error) {
+        console.error(error);
+        alert('ダウンロード開始コマンドの送信に失敗しました');
       }
     }
   </script>
