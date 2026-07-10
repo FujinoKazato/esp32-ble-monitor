@@ -25,6 +25,9 @@
     .btn-group button:hover { background-color: #d0d0d0; }
     .btn-group button#backlightOnBtn.active { background-color: #28a745; color: white; border-color: #28a745; }
     .btn-group button#backlightOffBtn.active { background-color: #dc3545; color: white; border-color: #dc3545; }
+    #downloadBtn { background-color: #28a745; }
+    #downloadBtn:hover { background-color: #218838; }
+    #downloadBtn:disabled { background-color: #ccc; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -55,7 +58,7 @@
     </table>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
       <button onclick="toggleView()" id="toSettingsBtn" disabled>設定画面へ</button>
-      <button onclick="requestDownload()" id="downloadBtn" disabled style="background-color: #28a745;">観測データのダウンロード</button>
+      <button onclick="requestDownload()" id="downloadBtn" disabled>観測データのダウンロード</button>
     </div>
     <div id="downloadStatus" style="margin-top: 10px; font-weight: bold; display: none;">
       ダウンロード中: <span id="downloadProgress">0</span>% (<span id="downloadBytes">0</span> / <span id="downloadTotal">0</span> バイト)
