@@ -59,10 +59,18 @@
     /* PC表示用レスポンシブスタイル */
     @media (min-width: 768px) {
       body { padding: 30px; }
-      .container { padding: 30px; }
-      .monitor-grid { grid-template-columns: 1fr 1fr; }
-      .settings-grid { grid-template-columns: 1fr 1fr; }
-      h2 { font-size: 1.6rem; }
+      .container { max-width: 1020px; padding: 35px; }
+      .monitor-grid { grid-template-columns: 1fr 1fr; gap: 25px; }
+      .settings-grid { grid-template-columns: 1fr 1fr; gap: 25px; }
+      h2 { font-size: 1.8rem; padding-bottom: 10px; }
+      h3 { font-size: 1.25rem; margin-bottom: 15px; }
+      th, td { padding: 12px 16px; font-size: 16px; }
+      .form-group label { font-size: 15px; }
+      input[type="number"] { font-size: 16px; padding: 9px 14px; width: 140px; }
+      button { font-size: 16px; padding: 12px 24px; }
+      #connectionStatus { font-size: 16px; margin-left: 15px; }
+      .btn-group button { font-size: 15px; padding: 9px; }
+      #downloadStatus { font-size: 16px; }
     }
   </style>
 </head>
