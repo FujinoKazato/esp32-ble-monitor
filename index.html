@@ -34,7 +34,7 @@
     #downloadBtn:disabled { background-color: #ccc !important; cursor: not-allowed; }
     #disconnectBtn { background-color: #dc3545; }
     #disconnectBtn:hover { background-color: #c82333; }
-    #bleControls { margin-bottom: 20px; background: #eef2f5; padding: 15px; border-radius: 8px; display: flex; align-items: center; flex-wrap: wrap; }
+    #bleControls { display: inline-flex; align-items: center; gap: 12px; margin: 0; }
     
     .monitor-grid, .settings-grid {
       display: grid;
@@ -51,9 +51,10 @@
     }
     .action-bar {
       display: flex;
-      gap: 10px;
+      gap: 12px;
+      align-items: center;
       flex-wrap: wrap;
-      margin-top: 15px;
+      margin-top: 20px;
     }
     
     /* PC表示用レスポンシブスタイル */
@@ -69,7 +70,7 @@
       .form-group label { font-size: 17px; display: inline-block; margin-bottom: 6px; }
       input[type="number"] { font-size: 18px; padding: 10px 16px; width: 150px; }
       button { font-size: 18px; padding: 14px 28px; border-radius: 8px; }
-      #connectionStatus { font-size: 18px; margin-left: 18px; }
+      #connectionStatus { font-size: 18px; margin-left: 10px; }
       .btn-group { max-width: 240px; }
       .btn-group button { font-size: 16px; padding: 10px; }
       #downloadStatus { font-size: 18px; }
@@ -78,12 +79,6 @@
 </head>
 <body>
   <div class="container">
-    <div id="bleControls">
-      <button id="connectBtn">接続する(Bluetooth)</button>
-      <button id="disconnectBtn" style="display: none;">切断する</button>
-      <div id="connectionStatus">未接続</div>
-    </div>
-
     <div id="monitorView">
       <h2>モニタリング画面</h2>
       <div class="monitor-grid">
@@ -120,6 +115,11 @@
       <div class="action-bar">
         <button onclick="toggleView()" id="toSettingsBtn" disabled>設定画面へ</button>
         <button onclick="requestDownload()" id="downloadBtn" disabled>観測データのダウンロード</button>
+        <div id="bleControls">
+          <button id="connectBtn">接続する(Bluetooth)</button>
+          <button id="disconnectBtn" style="display: none;">切断する</button>
+          <div id="connectionStatus">未接続</div>
+        </div>
       </div>
       <div id="downloadStatus" style="margin-top: 10px; font-weight: bold; display: none;">
         ダウンロード中: <span id="downloadProgress">0</span>% (<span id="downloadBytes">0</span> / <span id="downloadTotal">0</span> バイト)
